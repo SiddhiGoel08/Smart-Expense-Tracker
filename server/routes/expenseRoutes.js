@@ -1,31 +1,56 @@
 const express = require('express');
 const Expense = require('../models/Expense');
+const CategoryRule = require('../models/CategoryRule');
 const auth = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
-const categoryKeywords = {
-  Food: ['swiggy', 'zomato', 'restaurant', 'food'],
-  Transport: ['uber', 'ola', 'petrol', 'fuel'],
-  Shopping: ['amazon', 'flipkart', 'myntra'],
-  Entertainment: ['netflix', 'spotify', 'movie', 'prime'],
+const defaultKeywords = {
+  Food: ['swiggy', 'zomato', 'restaurant', 'food', 'cafe', 'coffee', 'dominos', 'pizza', 'burger', 'dinner', 'lunch', 'breakfast', 'grocery', 'groceries'],
+  Transport: ['uber', 'ola', 'petrol', 'fuel', 'diesel', 'cab', 'taxi', 'bus', 'train', 'metro', 'auto', 'rickshaw'],
+  Shopping: ['amazon', 'flipkart', 'myntra', 'shopping', 'mall', 'clothes', 'shoes'],
+  Entertainment: ['netflix', 'spotify', 'movie', 'prime', 'cinema', 'concert', 'game', 'gaming'],
+  Bills: ['electricity', 'water bill', 'recharge', 'wifi', 'internet', 'rent', 'emi'],
 };
 
-function autoCategory(description) {
+async function autoCategory(description, userId) {
   const desc = description.toLowerCase();
-  for (const [category, keywords] of Object.entries(categoryKeywords)) {
-    if (keywords.some(k => desc.includes(k))) return category;
+
+  const userRules = await CategoryRule.find({ userId });
+  for (const rule of userRules) {
+    if (desc.includes(rule.keyword.toLowerCase())) {
+      return rule.category;
+    }
   }
+
+  for (const [category, keywords] of Object.entries(defaultKeywords)) {
+    if (keywords.some((k) => desc.includes(k))) {
+      return category;
+    }
+  }
+
   return 'Uncategorized';
 }
 
 router.post('/', auth, async (req, res) => {
   try {
     const { amount, description, date, category } = req.body;
-    const finalCategory = category || autoCategory(description);
+    const detectedCategory = await autoCategory(description, req.userId);
+    const finalCategory = category || detectedCategory;
+
     const expense = await Expense.create({
       userId: req.userId, amount, description, date, category: finalCategory,
     });
+
+    if (category && category !== detectedCategory && category !== 'Uncategorized') {
+      const mainWord = description.toLowerCase().split(' ')[0];
+      await CategoryRule.findOneAndUpdate(
+        { userId: req.userId, keyword: mainWord },
+        { category },
+        { upsert: true }
+      );
+    }
+
     res.status(201).json(expense);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -33,8 +58,32 @@ router.post('/', auth, async (req, res) => {
 });
 
 router.get('/', auth, async (req, res) => {
-  const expenses = await Expense.find({ userId: req.userId }).sort({ date: -1 });
-  res.json(expenses);
+  try {
+    const { category, startDate, endDate, minAmount, maxAmount, search } = req.query;
+    const filter = { userId: req.userId };
+
+    if (category) filter.category = category;
+    if (search) filter.description = { $regex: search, $options: 'i' };
+    if (minAmount || maxAmount) {
+      filter.amount = {};
+      if (minAmount) filter.amount.$gte = Number(minAmount);
+      if (maxAmount) filter.amount.$lte = Number(maxAmount);
+    }
+    if (startDate || endDate) {
+      filter.date = {};
+      if (startDate) filter.date.$gte = new Date(startDate);
+      if (endDate) {
+        const endOfDay = new Date(endDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        filter.date.$lte = endOfDay;
+      }
+    }
+
+    const expenses = await Expense.find(filter).sort({ date: -1 });
+    res.json(expenses);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 router.put('/:id', auth, async (req, res) => {
