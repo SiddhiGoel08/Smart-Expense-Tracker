@@ -7,6 +7,7 @@ require('dotenv').config();
 
 const authRoutes = require('./routes/authRoutes');
 const expenseRoutes = require('./routes/expenseRoutes');
+const recurringRoutes = require('./routes/recurringRoutes');
 
 const app = express();
 app.use(cors());
@@ -16,6 +17,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/budgets', budgetRoutes);
 app.use('/api/monthly-budget', monthlyBudgetRoutes);
+app.use('/api/recurring', recurringRoutes);
 
 
 mongoose.connect(process.env.MONGO_URI)

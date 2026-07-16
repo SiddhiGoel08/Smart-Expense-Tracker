@@ -32,6 +32,30 @@ async function autoCategory(description, userId) {
   return 'Uncategorized';
 }
 
+// Export to CSV — must come before any '/:id' routes
+router.get('/export/csv', auth, async (req, res) => {
+  try {
+    const expenses = await Expense.find({ userId: req.userId }).sort({ date: -1 });
+
+    let csv = 'Description,Category,Amount,Date\n';
+    expenses.forEach((exp) => {
+      const row = [
+        `"${exp.description.replace(/"/g, '""')}"`,
+        exp.category,
+        exp.amount,
+        new Date(exp.date).toLocaleDateString(),
+      ].join(',');
+      csv += row + '\n';
+    });
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=expenses.csv');
+    res.send(csv);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 router.post('/', auth, async (req, res) => {
   try {
     const { amount, description, date, category } = req.body;
@@ -87,10 +111,14 @@ router.get('/', auth, async (req, res) => {
 });
 
 router.put('/:id', auth, async (req, res) => {
-  const expense = await Expense.findOneAndUpdate(
-    { _id: req.params.id, userId: req.userId }, req.body, { new: true }
-  );
-  res.json(expense);
+  try {
+    const expense = await Expense.findOneAndUpdate(
+      { _id: req.params.id, userId: req.userId }, req.body, { new: true }
+    );
+    res.json(expense);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 router.delete('/:id', auth, async (req, res) => {

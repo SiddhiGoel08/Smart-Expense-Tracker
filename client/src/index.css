@@ -1,5 +1,6 @@
 :root {
   --bg: #f7f8fa;
+  --auth-bg: linear-gradient(135deg, #eef2ff 0%, #f5f3ff 50%, #fdf4ff 100%);
   --surface: #ffffff;
   --text: #1a1a1a;
   --text-muted: #6b7280;
@@ -15,6 +16,7 @@
 
 [data-theme="dark"] {
   --bg: #0f1115;
+  --auth-bg: linear-gradient(135deg, #0f1115 0%, #1a1625 50%, #16121f 100%);
   --surface: #1a1d24;
   --text: #f3f4f6;
   --text-muted: #9ca3af;
