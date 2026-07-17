@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useTheme } from '../context/ThemeContext';
+import { useCurrency } from '../context/CurrencyContext';
 
 const COLORS = ['#4f46e5', '#16a34a', '#f59e0b', '#dc2626', '#8b5cf6', '#0891b2'];
 
@@ -26,9 +27,15 @@ function Dashboard() {
   const [editDescription, setEditDescription] = useState('');
   const [editCategory, setEditCategory] = useState('');
 
+  const [recurringList, setRecurringList] = useState([]);
+  const [recurringAmount, setRecurringAmount] = useState('');
+  const [recurringDescription, setRecurringDescription] = useState('');
+  const [recurringCategory, setRecurringCategory] = useState('Food');
+
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user'));
   const { theme, toggleTheme } = useTheme();
+  const { currency, setCurrency, symbol } = useCurrency();
 
   const fetchExpenses = async () => {
     try {
@@ -55,6 +62,26 @@ function Dashboard() {
     }
   };
 
+  const fetchRecurring = async () => {
+    try {
+      const res = await api.get('/recurring');
+      setRecurringList(res.data);
+    } catch (err) {
+      console.log('Failed to load recurring expenses');
+    }
+  };
+
+  const processRecurring = async () => {
+    try {
+      const res = await api.post('/recurring/process');
+      if (res.data.generatedCount > 0) {
+        fetchExpenses();
+      }
+    } catch (err) {
+      console.log('Failed to process recurring expenses');
+    }
+  };
+
   const handleSetBudget = async (e) => {
     e.preventDefault();
     try {
@@ -66,8 +93,32 @@ function Dashboard() {
     }
   };
 
+  const handleAddRecurring = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post('/recurring', {
+        amount: Number(recurringAmount),
+        description: recurringDescription,
+        category: recurringCategory,
+      });
+      setRecurringAmount('');
+      setRecurringDescription('');
+      fetchRecurring();
+      fetchExpenses();
+    } catch (err) {
+      setError('Failed to add recurring expense');
+    }
+  };
+
+  const handleDeleteRecurring = async (id) => {
+    await api.delete(`/recurring/${id}`);
+    fetchRecurring();
+  };
+
   useEffect(() => {
     fetchExpenses();
+    fetchRecurring();
+    processRecurring();
   }, [categoryFilter, searchFilter, dateFilter]);
 
   useEffect(() => {
@@ -162,6 +213,12 @@ function Dashboard() {
           <p style={{ color: 'var(--text-muted)', margin: 0 }}>Here's your spending overview</p>
         </div>
         <div className="row" style={{ flex: 'none', gap: '10px' }}>
+          <select className="input" value={currency} onChange={(e) => setCurrency(e.target.value)} style={{ width: 'auto' }}>
+            <option value="INR">₹ INR</option>
+            <option value="USD">$ USD</option>
+            <option value="EUR">€ EUR</option>
+            <option value="GBP">£ GBP</option>
+          </select>
           <button className="theme-toggle" onClick={toggleTheme}>
             {theme === 'light' ? '🌙' : '☀️'}
           </button>
@@ -173,7 +230,7 @@ function Dashboard() {
 
       <div className="card">
         <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '14px' }}>Total Spent</p>
-        <h1 style={{ margin: '4px 0' }}>₹{totalAmount}</h1>
+        <h1 style={{ margin: '4px 0' }}>{symbol}{totalAmount}</h1>
       </div>
 
       <div className="card">
@@ -196,7 +253,7 @@ function Dashboard() {
         {monthlyBudget?.limit && (
           <div>
             <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
-              Budget: ₹{monthlyBudget.limit} &nbsp;•&nbsp; Spent: ₹{monthlyBudget.totalSpent} &nbsp;•&nbsp; Remaining: ₹{monthlyBudget.remaining}
+              Budget: {symbol}{monthlyBudget.limit} &nbsp;•&nbsp; Spent: {symbol}{monthlyBudget.totalSpent} &nbsp;•&nbsp; Remaining: {symbol}{monthlyBudget.remaining}
             </p>
 
             <div className="progress-track">
@@ -211,14 +268,14 @@ function Dashboard() {
 
             {monthlyBudget.isOverBudget && (
               <p className="error-text" style={{ fontWeight: 600, marginTop: '12px' }}>
-                ⚠️ You've gone over budget by ₹{Math.abs(monthlyBudget.remaining)}.
+                ⚠️ You've gone over budget by {symbol}{Math.abs(monthlyBudget.remaining)}.
               </p>
             )}
 
             {!monthlyBudget.isOverBudget && monthlyBudget.isMonthOver && (
               <div style={{ background: 'var(--success-bg)', padding: '12px', borderRadius: '8px', marginTop: '12px' }}>
                 <p style={{ color: 'var(--success)', fontWeight: 600, margin: 0 }}>
-                  🎉 You stayed under budget, with ₹{monthlyBudget.remaining} left over!
+                  🎉 You stayed under budget, with {symbol}{monthlyBudget.remaining} left over!
                 </p>
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '6px 0 0' }}>
                   General idea (not personalized financial advice): consider a savings account, RD,
@@ -278,6 +335,55 @@ function Dashboard() {
           </select>
           <button className="btn" type="submit" style={{ flex: 'none' }}>Add</button>
         </form>
+      </div>
+
+      <div className="card">
+        <h3>🔁 Recurring Expenses</h3>
+        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '-8px' }}>
+          Set it once — these auto-add every new month (e.g. Netflix, Rent)
+        </p>
+        <form onSubmit={handleAddRecurring} className="row">
+          <input
+            className="input"
+            type="number"
+            placeholder="Amount"
+            value={recurringAmount}
+            onChange={(e) => setRecurringAmount(e.target.value)}
+            required
+          />
+          <input
+            className="input"
+            type="text"
+            placeholder="Description (e.g. Netflix)"
+            value={recurringDescription}
+            onChange={(e) => setRecurringDescription(e.target.value)}
+            required
+            style={{ flex: 2 }}
+          />
+          <select
+            className="input"
+            value={recurringCategory}
+            onChange={(e) => setRecurringCategory(e.target.value)}
+          >
+            <option value="Food">Food</option>
+            <option value="Transport">Transport</option>
+            <option value="Shopping">Shopping</option>
+            <option value="Entertainment">Entertainment</option>
+            <option value="Bills">Bills</option>
+          </select>
+          <button className="btn" type="submit" style={{ flex: 'none' }}>Add Recurring</button>
+        </form>
+
+        {recurringList.length > 0 && (
+          <div style={{ marginTop: '16px' }}>
+            {recurringList.map((r) => (
+              <div key={r._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                <span>{r.description} — {symbol}{r.amount}/month <span className="badge">{r.category}</span></span>
+                <button className="btn-danger" onClick={() => handleDeleteRecurring(r._id)}>Remove</button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="card">
@@ -370,7 +476,7 @@ function Dashboard() {
                   <>
                     <td>{exp.description}</td>
                     <td><span className="badge">{exp.category}</span></td>
-                    <td>₹{exp.amount}</td>
+                    <td>{symbol}{exp.amount}</td>
                     <td>{new Date(exp.date).toLocaleDateString()}</td>
                     <td style={{ display: 'flex', gap: '6px' }}>
                       <button className="btn-secondary" onClick={() => startEdit(exp)}>Edit</button>
