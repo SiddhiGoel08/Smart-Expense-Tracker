@@ -491,7 +491,16 @@ function Dashboard() {
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip />
+               <Tooltip
+  contentStyle={{
+    background: 'var(--primary)',
+    border: 'none',
+    borderRadius: '8px',
+    color: 'var(--accent-forest)',
+  }}
+  labelStyle={{ color: 'var(--accent-forest)', fontWeight: 600 }}
+  itemStyle={{ color: 'var(--accent-forest)' }}
+/>
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
@@ -508,8 +517,17 @@ function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="label" stroke="var(--text-muted)" />
                 <YAxis stroke="var(--text-muted)" />
-                <Tooltip />
-                <Bar dataKey="total" fill="#4f46e5" radius={[6, 6, 0, 0]} />
+               <Tooltip
+  contentStyle={{
+    background: 'var(--primary)',
+    border: 'none',
+    borderRadius: '8px',
+    color: 'var(--accent-forest)',
+  }}
+  labelStyle={{ color: 'var(--accent-forest)', fontWeight: 600 }}
+  itemStyle={{ color: 'var(--accent-forest)' }}
+/>
+                <Bar dataKey="total" fill="#d4af37" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
