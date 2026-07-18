@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
@@ -206,7 +207,7 @@ function Dashboard() {
   const categories = ['Food', 'Transport', 'Shopping', 'Entertainment', 'Bills', 'Uncategorized'];
 
   return (
-    <div className="container" style={{ minHeight: '100vh', background: 'var(--dashboard-bg)' }}>
+    <motion.div className="container" style={{ minHeight: '100vh', background: 'var(--dashboard-bg)' }} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, ease: 'easeOut' }}>
       <div className="header">
         <div>
           <h2>Welcome, {user?.name || 'User'} 👋</h2>
@@ -222,6 +223,7 @@ function Dashboard() {
           <button className="theme-toggle" onClick={toggleTheme}>
             {theme === 'light' ? '🌙' : '☀️'}
           </button>
+          <button className="btn btn-secondary" onClick={() => navigate('/tax-insights')}>Tax insights</button>
           <button className="btn btn-secondary" onClick={handleLogout}>Logout</button>
         </div>
       </div>
@@ -489,7 +491,7 @@ function Dashboard() {
           </tbody>
         </table>
       </div>
-    </div>
+    </motion.div>
   );
 }
 

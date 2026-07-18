@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
+import TaxInsights from './pages/TaxInsights';
 import { ThemeProvider } from './context/ThemeContext';
 import { CurrencyProvider } from './context/CurrencyContext';
 
@@ -26,6 +27,14 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+  path="/tax-insights"
+  element={
+    <ProtectedRoute>
+      <TaxInsights />
+    </ProtectedRoute>
+  }
+/>
             <Route path="/" element={<Navigate to="/login" />} />
           </Routes>
         </BrowserRouter>
