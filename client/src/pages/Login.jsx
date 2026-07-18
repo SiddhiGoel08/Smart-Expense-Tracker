@@ -87,8 +87,12 @@ function Login() {
           <button className="btn" type="submit">Login</button>
         </form>
         <p style={{ marginTop: '16px', fontSize: '14px' }}>
-          Don't have an account? <Link to="/signup" className="link">Sign up</Link>
-        </p>
+  Don't have an account? <Link to="/signup" className="link">Sign up</Link>
+</p>
+<p style={{ marginTop: '8px', fontSize: '14px' }}>
+  <Link to="/forgot-password" className="link">Forgot Password?</Link>
+</p>
+        
       </motion.div>
     </div>
   );

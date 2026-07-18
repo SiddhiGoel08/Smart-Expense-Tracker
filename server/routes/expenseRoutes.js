@@ -125,5 +125,90 @@ router.delete('/:id', auth, async (req, res) => {
   await Expense.findOneAndDelete({ _id: req.params.id, userId: req.userId });
   res.json({ message: 'Deleted' });
 });
+// Monthly trend: total spending per month for the last 6 months
+router.get('/trend', auth, async (req, res) => {
+  try {
+    const now = new Date();
+    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+
+    const expenses = await Expense.find({
+      userId: req.userId,
+      date: { $gte: sixMonthsAgo },
+    });
+
+    const monthlyTotals = {};
+    for (let i = 0; i < 6; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${d.getMonth() + 1}`;
+      monthlyTotals[key] = {
+        label: d.toLocaleString('default', { month: 'short', year: '2-digit' }),
+        total: 0,
+        sortKey: d.getFullYear() * 100 + d.getMonth(),
+      };
+    }
+
+    expenses.forEach((exp) => {
+      const d = new Date(exp.date);
+      const key = `${d.getFullYear()}-${d.getMonth() + 1}`;
+      if (monthlyTotals[key]) {
+        monthlyTotals[key].total += exp.amount;
+      }
+    });
+
+    const result = Object.values(monthlyTotals).sort((a, b) => a.sortKey - b.sortKey);
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Month-over-month comparison by category
+router.get('/comparison', auth, async (req, res) => {
+  try {
+    const now = new Date();
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const thisMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+
+    const thisMonthExpenses = await Expense.find({
+      userId: req.userId,
+      date: { $gte: thisMonthStart, $lte: thisMonthEnd },
+    });
+    const lastMonthExpenses = await Expense.find({
+      userId: req.userId,
+      date: { $gte: lastMonthStart, $lte: lastMonthEnd },
+    });
+
+    const sumByCategory = (list) => {
+      const totals = {};
+      list.forEach((e) => {
+        totals[e.category] = (totals[e.category] || 0) + e.amount;
+      });
+      return totals;
+    };
+
+    const thisMonthTotals = sumByCategory(thisMonthExpenses);
+    const lastMonthTotals = sumByCategory(lastMonthExpenses);
+
+    const alerts = [];
+    for (const category in thisMonthTotals) {
+      const current = thisMonthTotals[category];
+      const previous = lastMonthTotals[category] || 0;
+      if (previous > 0) {
+        const percentChange = Math.round(((current - previous) / previous) * 100);
+        if (percentChange >= 20) {
+          alerts.push({ category, percentChange, current, previous });
+        }
+      }
+    }
+
+    res.json({ thisMonthTotals, lastMonthTotals, alerts });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+
 
 module.exports = router;

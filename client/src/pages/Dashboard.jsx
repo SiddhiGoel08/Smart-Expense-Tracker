@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { useTheme } from '../context/ThemeContext';
 import { useCurrency } from '../context/CurrencyContext';
 
@@ -32,6 +32,9 @@ function Dashboard() {
   const [recurringAmount, setRecurringAmount] = useState('');
   const [recurringDescription, setRecurringDescription] = useState('');
   const [recurringCategory, setRecurringCategory] = useState('Food');
+
+  const [trendData, setTrendData] = useState([]);
+  const [comparisonAlerts, setComparisonAlerts] = useState([]);
 
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user'));
@@ -83,6 +86,24 @@ function Dashboard() {
     }
   };
 
+  const fetchTrend = async () => {
+    try {
+      const res = await api.get('/expenses/trend');
+      setTrendData(res.data);
+    } catch (err) {
+      console.log('Failed to load trend');
+    }
+  };
+
+  const fetchComparison = async () => {
+    try {
+      const res = await api.get('/expenses/comparison');
+      setComparisonAlerts(res.data.alerts);
+    } catch (err) {
+      console.log('Failed to load comparison');
+    }
+  };
+
   const handleSetBudget = async (e) => {
     e.preventDefault();
     try {
@@ -120,6 +141,8 @@ function Dashboard() {
     fetchExpenses();
     fetchRecurring();
     processRecurring();
+    fetchTrend();
+    fetchComparison();
   }, [categoryFilter, searchFilter, dateFilter]);
 
   useEffect(() => {
@@ -147,6 +170,8 @@ function Dashboard() {
   };
 
   const handleDelete = async (id) => {
+    const confirmed = window.confirm('Are you sure you want to delete this expense?');
+    if (!confirmed) return;
     await api.delete(`/expenses/${id}`);
     fetchExpenses();
   };
@@ -197,6 +222,23 @@ function Dashboard() {
 
   const totalAmount = expenses.reduce((sum, exp) => sum + exp.amount, 0);
 
+  const uniqueDays = [...new Set(expenses.map((e) => new Date(e.date).toDateString()))];
+  const avgDailySpend = uniqueDays.length > 0 ? Math.round(totalAmount / uniqueDays.length) : 0;
+
+  const dayTotals = expenses.reduce((acc, exp) => {
+    const day = new Date(exp.date).toDateString();
+    acc[day] = (acc[day] || 0) + exp.amount;
+    return acc;
+  }, {});
+  const highestDay = Object.entries(dayTotals).sort((a, b) => b[1] - a[1])[0];
+
+  const topCategory = Object.entries(
+    expenses.reduce((acc, exp) => {
+      acc[exp.category] = (acc[exp.category] || 0) + exp.amount;
+      return acc;
+    }, {})
+  ).sort((a, b) => b[1] - a[1])[0];
+
   const categoryTotals = expenses.reduce((acc, exp) => {
     acc[exp.category] = (acc[exp.category] || 0) + exp.amount;
     return acc;
@@ -205,9 +247,14 @@ function Dashboard() {
   const chartData = Object.entries(categoryTotals).map(([name, value]) => ({ name, value }));
 
   const categories = ['Food', 'Transport', 'Shopping', 'Entertainment', 'Bills', 'Uncategorized'];
-
   return (
-    <motion.div className="container" style={{ minHeight: '100vh', background: 'var(--dashboard-bg)' }} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, ease: 'easeOut' }}>
+    <motion.div
+      className="container"
+      style={{ minHeight: '100vh', background: 'var(--dashboard-bg)' }}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: 'easeOut' }}
+    >
       <div className="header">
         <div>
           <h2>Welcome, {user?.name || 'User'} 👋</h2>
@@ -223,6 +270,7 @@ function Dashboard() {
           <button className="theme-toggle" onClick={toggleTheme}>
             {theme === 'light' ? '🌙' : '☀️'}
           </button>
+          <button className="btn btn-secondary" onClick={() => navigate('/profile')}>👤 Profile</button>
           <button className="btn btn-secondary" onClick={() => navigate('/tax-insights')}>Tax insights</button>
           <button className="btn btn-secondary" onClick={handleLogout}>Logout</button>
         </div>
@@ -234,6 +282,25 @@ function Dashboard() {
         <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '14px' }}>Total Spent</p>
         <h1 style={{ margin: '4px 0' }}>{symbol}{totalAmount}</h1>
       </div>
+
+      {expenses.length > 0 && (
+        <div className="row" style={{ marginBottom: '20px' }}>
+          <div className="card" style={{ margin: 0 }}>
+            <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '13px' }}>📆 Avg Daily Spend</p>
+            <h3 style={{ margin: '4px 0' }}>{symbol}{avgDailySpend}</h3>
+          </div>
+          <div className="card" style={{ margin: 0 }}>
+            <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '13px' }}>🔥 Highest Spending Day</p>
+            <h3 style={{ margin: '4px 0' }}>{symbol}{highestDay ? highestDay[1] : 0}</h3>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>{highestDay ? highestDay[0] : '—'}</p>
+          </div>
+          <div className="card" style={{ margin: 0 }}>
+            <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '13px' }}>🏆 Top Category</p>
+            <h3 style={{ margin: '4px 0' }}>{topCategory ? topCategory[0] : '—'}</h3>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>{topCategory ? `${symbol}${topCategory[1]}` : ''}</p>
+          </div>
+        </div>
+      )}
 
       <div className="card">
         <h3>📅 Monthly Budget</h3>
@@ -429,6 +496,34 @@ function Dashboard() {
               </PieChart>
             </ResponsiveContainer>
           </div>
+        </div>
+      )}
+
+      {trendData.length > 0 && (
+        <div className="card">
+          <h3>📈 Monthly Spending Trend</h3>
+          <div style={{ width: '100%', height: 300 }}>
+            <ResponsiveContainer>
+              <BarChart data={trendData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="label" stroke="var(--text-muted)" />
+                <YAxis stroke="var(--text-muted)" />
+                <Tooltip />
+                <Bar dataKey="total" fill="#4f46e5" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
+      {comparisonAlerts.length > 0 && (
+        <div className="card">
+          <h3>🔔 Spending Alerts</h3>
+          {comparisonAlerts.map((alert) => (
+            <p key={alert.category} style={{ fontSize: '14px', margin: '8px 0' }}>
+              You've spent <strong>{alert.percentChange}% more</strong> on <span className="badge">{alert.category}</span> this month ({symbol}{alert.current}) compared to last month ({symbol}{alert.previous}).
+            </p>
+          ))}
         </div>
       )}
 
