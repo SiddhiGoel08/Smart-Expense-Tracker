@@ -12,7 +12,7 @@ const taxRoutes = require('./routes/taxRoutes');
 
 const app = express();
 app.use(cors({
-  origin:"https://dhanview.vercel.app"
+  origin:"https://dhanview.vercel.app",
   credentials: true,
 }));
 app.use(express.json());
