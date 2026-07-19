@@ -138,7 +138,7 @@ router.delete('/:id', auth, async (req, res) => {
 router.get('/trend', auth, async (req, res) => {
   try {
     const now = new Date();
-    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    const sixMonthsAgo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5, 1));
 
     const expenses = await Expense.find({
       userId: req.userId,
@@ -147,14 +147,30 @@ router.get('/trend', auth, async (req, res) => {
 
     const monthlyTotals = {};
     for (let i = 0; i < 6; i++) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const key = `${d.getFullYear()}-${d.getMonth() + 1}`;
+      const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+      const key = `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}`;
       monthlyTotals[key] = {
-        label: d.toLocaleString('default', { month: 'short', year: '2-digit' }),
+        label: d.toLocaleString('default', { month: 'short', year: '2-digit', timeZone: 'UTC' }),
         total: 0,
-        sortKey: d.getFullYear() * 100 + d.getMonth(),
+        sortKey: d.getUTCFullYear() * 100 + d.getUTCMonth(),
       };
     }
+
+    expenses.forEach((exp) => {
+      const d = new Date(exp.date);
+      const key = `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}`;
+      if (monthlyTotals[key]) {
+        monthlyTotals[key].total += exp.amount;
+      }
+    });
+
+    const result = Object.values(monthlyTotals).sort((a, b) => a.sortKey - b.sortKey);
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 
     expenses.forEach((exp) => {
       const d = new Date(exp.date);
