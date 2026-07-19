@@ -15,6 +15,7 @@ function Dashboard() {
   const [expenseDate, setExpenseDate] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
 
   const [categoryFilter, setCategoryFilter] = useState('');
   const [searchFilter, setSearchFilter] = useState('');
@@ -54,6 +55,8 @@ function Dashboard() {
       setExpenses(res.data);
     } catch (err) {
       setError('Failed to load expenses');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -491,16 +494,7 @@ function Dashboard() {
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-               <Tooltip
-  contentStyle={{
-    background: 'var(--primary)',
-    border: 'none',
-    borderRadius: '8px',
-    color: 'var(--accent-forest)',
-  }}
-  labelStyle={{ color: 'var(--accent-forest)', fontWeight: 600 }}
-  itemStyle={{ color: 'var(--accent-forest)' }}
-/>
+                <Tooltip />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
@@ -517,17 +511,8 @@ function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="label" stroke="var(--text-muted)" />
                 <YAxis stroke="var(--text-muted)" />
-               <Tooltip
-  contentStyle={{
-    background: 'var(--primary)',
-    border: 'none',
-    borderRadius: '8px',
-    color: 'var(--accent-forest)',
-  }}
-  labelStyle={{ color: 'var(--accent-forest)', fontWeight: 600 }}
-  itemStyle={{ color: 'var(--accent-forest)' }}
-/>
-                <Bar dataKey="total" fill="#d4af37" radius={[6, 6, 0, 0]} />
+                <Tooltip />
+                <Bar dataKey="total" fill="#4f46e5" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -550,59 +535,70 @@ function Dashboard() {
           <h3>📋 Your Expenses</h3>
           <button className="btn btn-secondary" onClick={handleExportCSV}>⬇️ Export CSV</button>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Description</th>
-              <th>Category</th>
-              <th>Amount</th>
-              <th>Date</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {expenses.map((exp) => (
-              <tr key={exp._id}>
-                {editingId === exp._id ? (
-                  <>
-                    <td>
-                      <input className="input" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} />
-                    </td>
-                    <td>
-                      <select className="input" value={editCategory} onChange={(e) => setEditCategory(e.target.value)}>
-                        <option value="Food">Food</option>
-                        <option value="Transport">Transport</option>
-                        <option value="Shopping">Shopping</option>
-                        <option value="Entertainment">Entertainment</option>
-                        <option value="Bills">Bills</option>
-                        <option value="Uncategorized">Uncategorized</option>
-                      </select>
-                    </td>
-                    <td>
-                      <input className="input" type="number" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} />
-                    </td>
-                    <td>{new Date(exp.date).toLocaleDateString()}</td>
-                    <td style={{ display: 'flex', gap: '6px' }}>
-                      <button className="btn" onClick={() => handleUpdateExpense(exp._id)}>Save</button>
-                      <button className="btn-secondary" onClick={() => setEditingId(null)}>Cancel</button>
-                    </td>
-                  </>
-                ) : (
-                  <>
-                    <td>{exp.description}</td>
-                    <td><span className="badge">{exp.category}</span></td>
-                    <td>{symbol}{exp.amount}</td>
-                    <td>{new Date(exp.date).toLocaleDateString()}</td>
-                    <td style={{ display: 'flex', gap: '6px' }}>
-                      <button className="btn-secondary" onClick={() => startEdit(exp)}>Edit</button>
-                      <button className="btn-danger" onClick={() => handleDelete(exp._id)}>Delete</button>
-                    </td>
-                  </>
-                )}
+
+        {loading ? (
+          <div className="spinner-container">
+            <div className="spinner"></div>
+          </div>
+        ) : expenses.length === 0 ? (
+          <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '20px' }}>
+            No expenses yet — add your first one above! 🎉
+          </p>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th>Category</th>
+                <th>Amount</th>
+                <th>Date</th>
+                <th></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {expenses.map((exp) => (
+                <tr key={exp._id}>
+                  {editingId === exp._id ? (
+                    <>
+                      <td>
+                        <input className="input" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} />
+                      </td>
+                      <td>
+                        <select className="input" value={editCategory} onChange={(e) => setEditCategory(e.target.value)}>
+                          <option value="Food">Food</option>
+                          <option value="Transport">Transport</option>
+                          <option value="Shopping">Shopping</option>
+                          <option value="Entertainment">Entertainment</option>
+                          <option value="Bills">Bills</option>
+                          <option value="Uncategorized">Uncategorized</option>
+                        </select>
+                      </td>
+                      <td>
+                        <input className="input" type="number" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} />
+                      </td>
+                      <td>{new Date(exp.date).toLocaleDateString()}</td>
+                      <td style={{ display: 'flex', gap: '6px' }}>
+                        <button className="btn" onClick={() => handleUpdateExpense(exp._id)}>Save</button>
+                        <button className="btn-secondary" onClick={() => setEditingId(null)}>Cancel</button>
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td>{exp.description}</td>
+                      <td><span className="badge">{exp.category}</span></td>
+                      <td>{symbol}{exp.amount}</td>
+                      <td>{new Date(exp.date).toLocaleDateString()}</td>
+                      <td style={{ display: 'flex', gap: '6px' }}>
+                        <button className="btn-secondary" onClick={() => startEdit(exp)}>Edit</button>
+                        <button className="btn-danger" onClick={() => handleDelete(exp._id)}>Delete</button>
+                      </td>
+                    </>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </motion.div>
   );

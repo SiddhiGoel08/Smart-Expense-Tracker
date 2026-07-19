@@ -1,3 +1,4 @@
+const { body, validationResult } = require('express-validator');
 const express = require('express');
 const Expense = require('../models/Expense');
 const CategoryRule = require('../models/CategoryRule');
@@ -56,7 +57,15 @@ router.get('/export/csv', auth, async (req, res) => {
   }
 });
 
-router.post('/', auth, async (req, res) => {
+
+  router.post('/', auth, [
+  body('amount').isFloat({ gt: 0 }).withMessage('Amount must be a positive number'),
+  body('description').trim().notEmpty().withMessage('Description is required'),
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ error: errors.array()[0].msg });
+  }
   try {
     const { amount, description, date, category } = req.body;
     const detectedCategory = await autoCategory(description, req.userId);

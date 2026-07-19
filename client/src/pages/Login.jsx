@@ -11,25 +11,29 @@ function Login() {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
+  const [loading, setLoading] = useState(false);
 
   const handleMouseMove = (e) => {
     const x = (e.clientX / window.innerWidth - 0.5) * 20;
     const y = (e.clientY / window.innerHeight - 0.5) * 20;
     setOffset({ x, y });
   };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    try {
-      const res = await api.post('/auth/login', { email, password });
-      localStorage.setItem('token', res.data.token);
-      localStorage.setItem('user', JSON.stringify(res.data.user));
-      navigate('/dashboard');
-    } catch (err) {
-      setError(err.response?.data?.error || 'Login failed');
-    }
-  };
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setError('');
+  setLoading(true);
+  try {
+    const res = await api.post('/auth/login', { email, password });
+    localStorage.setItem('token', res.data.token);
+    localStorage.setItem('user', JSON.stringify(res.data.user));
+    navigate('/dashboard');
+  } catch (err) {
+    setError(err.response?.data?.error || 'Login failed');
+  } finally {
+    setLoading(false);
+  }
+};
+  
 
   return (
     <div
@@ -84,7 +88,10 @@ function Login() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
-          <button className="btn" type="submit">Login</button>
+          <button className="btn" type="submit" disabled={loading}>
+  {loading ? 'Logging in...' : 'Login'}
+</button>
+          
         </form>
         <p style={{ marginTop: '16px', fontSize: '14px' }}>
   Don't have an account? <Link to="/signup" className="link">Sign up</Link>
