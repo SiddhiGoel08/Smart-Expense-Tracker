@@ -57,8 +57,7 @@ router.get('/export/csv', auth, async (req, res) => {
   }
 });
 
-
-  router.post('/', auth, [
+router.post('/', auth, [
   body('amount').isFloat({ gt: 0 }).withMessage('Amount must be a positive number'),
   body('description').trim().notEmpty().withMessage('Description is required'),
 ], async (req, res) => {
@@ -134,6 +133,7 @@ router.delete('/:id', auth, async (req, res) => {
   await Expense.findOneAndDelete({ _id: req.params.id, userId: req.userId });
   res.json({ message: 'Deleted' });
 });
+
 // Monthly trend: total spending per month for the last 6 months
 router.get('/trend', auth, async (req, res) => {
   try {
@@ -159,22 +159,6 @@ router.get('/trend', auth, async (req, res) => {
     expenses.forEach((exp) => {
       const d = new Date(exp.date);
       const key = `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}`;
-      if (monthlyTotals[key]) {
-        monthlyTotals[key].total += exp.amount;
-      }
-    });
-
-    const result = Object.values(monthlyTotals).sort((a, b) => a.sortKey - b.sortKey);
-    res.json(result);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-});
-
-
-    expenses.forEach((exp) => {
-      const d = new Date(exp.date);
-      const key = `${d.getFullYear()}-${d.getMonth() + 1}`;
       if (monthlyTotals[key]) {
         monthlyTotals[key].total += exp.amount;
       }
@@ -233,7 +217,5 @@ router.get('/comparison', auth, async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 });
-
-
 
 module.exports = router;
